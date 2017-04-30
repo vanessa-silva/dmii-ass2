@@ -1,0 +1,53 @@
+---
+title: "Practical Assignment 2 - Web and Text mining"
+author: "João Pires, Vanessa Silva"
+date: "30 de Abril de 2017"
+output: html_document
+---
+<br /> 
+
+This report follows the analysis of [IMDB](http://www.imdb.com) movies and their reviews, is the retrieval of relevant information on movies and the analysis of the reviews (and respective scores) assigned by users of the site to the movies.
+For this we will use our knowledge regarding web and text mining.
+
+*Web Mining* consists of extracting information from the content of the pages, their links, and users' browsing logs, using data mining tools. 
+Thus, we can divide Web Mining into three variants: Web Content Mining; Web Structure Mining; And Web Usage Mining.
+
+*Text Mining* consists of extracting useful information from a collection of documents.
+Involves basic pre-processing/text mining operations, such as identification/extraction of representative features, and identification of complex patterns as, e.g. relationships between previously identified concepts.
+Text Mining exploits techniques/methodologies from data mining, machine learning, information retrieval, and corpus-based computational linguistics. Where corpus is a collection of documents.
+
+
+**The Goal**
+
+To use web and text mining to extract and study important informations in the movies and their reviews, of IMDB website.
+
+
+##Necessary Packages
+
+```{r, eval=FALSE, message=FALSE, warning=FALSE, results='hide'}
+#Install the necessary packages
+install.packages("rvest")
+
+```
+
+
+```{r, message=FALSE, warning=FALSE}
+#Load the necessary packages
+library(rvest)
+
+```
+
+
+##Tasks
+
+###Find basic information
+
+###Obtain the information on all reviews from a movie
+
+###Model to predict the grade
+
+####Build a data set for learning
+
+####Try a few prediction models and draw conclusions
+
+###Summarise the reviews of a movie
