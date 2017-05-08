@@ -60,14 +60,16 @@ Searchform <- function(session, query, type) {
 }
 
 # Returns a list of the movies that match to the search string, by decreasing order of confidence
-listMovies <- function(query) { ##esta query tem de ser dada pelo utilizador (ver como fazer isso)
+listMovies <- function(query) { ##esta query tem de ser dada pelo utilizador (ver como fazer isso),  pode ser colocar num ficheiro ou escrever diretamente...
   type <- "tt"
   
   sessionMovies <- html_session(url_IMBD)
   
   results <- Searchform(sessionMovies, query, type)
   
-  ##Definir o que vamos usar como ordem de confiança: (usar Information Retrieval, como os exemplos abaixo (como nos slides))
+  ##Definir o que vamos usar como ordem de confiaça: 
+  ###O prof disse que podemos usar a estrategia que quisessemos, podemos apenas confiar na ordem dada
+  ###pelo site, ou ordenar pelo ranking, ou ordenar por maior parecençacom o titulo, etc...
   
   return(list(results %>% html_nodes(".result_text") %>% html_text(), results))
    
@@ -75,6 +77,7 @@ listMovies <- function(query) { ##esta query tem de ser dada pelo utilizador (ve
 
 
 r <- listMovies("Lego")
+
 results <- r[[2]]
 ##For each movie the basic information is returned as a list: 
 #add an extra parameter that controls the maximum number of retrieved movies
@@ -90,7 +93,7 @@ findBasInf <- function(m) {
   m %>% read_html() %>% html_nodes(".summary_text+ .credit_summary_item .itemprop") %>% html_text()
   
   #cast
-  m %>% read_html() %>% html_nodes("#titleCast .itemprop span") %>% html_text()    ##See full cast »????
+  m %>% read_html() %>% html_nodes("#titleCast .itemprop span") %>% html_text()    ##See full cast Â»????
   
   #description
   m %>% read_html() %>% html_nodes(".summary_text") %>% html_text()
@@ -120,56 +123,7 @@ findBasInf <- function(m) {
 #web page link
 movieLink <- head((results %>% html_nodes(".result_text > a") %>% html_attr("href")), n = 10)
 movieLink <- paste(url_IMBD, movieLink, sep='')
-lapply(movieLink, findBasInf(x))       ##demora a executae!!!
-
-
-
-##### Information Retrieval #############################
-library(tm)
-docs <- r
-corpus<-Corpus(VectorSource(docs)) 
-dtm <- DocumentTermMatrix(corpus) 
-
-# Term frequency – inverse document frequency Scheme
-tfidf<-weightTfIdf(dtm)
-as.matrix(tfidf) 
-
-# Term frequency Scheme 
-tf<-weightTf(dtm)
-as.matrix(tf)
-
-# Boolean model 
-boolean<-weightBin(dtm) 
-as.matrix(boolean) 
-
-# Measuring dissimilarity between documents 
-mycosdist<-function(x,y) 1-x%*%y/(sqrt(x%*%x)*sqrt(y%*%y))
-library(proxy)
-proxy::dist(as.matrix(dtm),method=mycosdist) 
- proxy::dist(as.matrix(weightBin(dtm)),method=mycosdist)
- proxy::dist(as.matrix(weightTf(dtm)),method=mycosdist) 
- proxy::dist(as.matrix(weightTfIdf(dtm)),method=mycosdist) 
- 
- # Ranking docs given a query
- cq<-Corpus(VectorSource("Lego"))   ##a nossa query
- dtmq<-DocumentTermMatrix(cq)
- qv<-NULL
- qv[colnames(dtm)]<-0 
-  qv[colnames(dtmq)]<-1 
-  dtmqd<-rbind(as.matrix(dtm),qv) 
-proxy::dist(dtmqd,method=mycosdist) 
-
-# Ranking docs given a query using Tf-Idf scheme
-dict<-colnames(dtm) # fetch the vocabulary of the corpus 
-dtmq<-DocumentTermMatrix(Corpus(VectorSource("Lego")),list(dictionary=dict))  ##nossa query
-tfidfq<-as.matrix(dtmq)[1,][dict]*log(3/apply(as.matrix(weightBin(dtm)),
-2,sum))[dict] 
-tfidfd<-as.matrix(weightTfIdf(dtm)) 
-mycosdist(tfidfq,tfidfd[1,])
-mycosdist(tfidfq,tfidfd[2,]) 
-mycosdist(tfidfq,tfidfd[3,]) 
-
-####### End ###############################
+lapply(movieLink, findBasInf(x))       ##demora a executar!!!
 
 
 
