@@ -59,74 +59,120 @@ Searchform <- function(session, query, type) {
   return(submit_form(session, form))
 }
 
-# Returns a list of the movies that match to the search string, by decreasing order of confidence
-listMovies <- function(query) { ##esta query tem de ser dada pelo utilizador (ver como fazer isso),  pode ser colocar num ficheiro ou escrever diretamente...
-  type <- "tt"
+# Returns web pages link
+webPages <- function(listResults) {
   
+  results <- listResults[[2]]
+  
+  #get web page link
+  movieLink <- (results %>% html_nodes(".result_text > a") %>% html_attr("href"))
+  movieLink <- paste(url_IMBD, movieLink, sep='')
+  
+  return(movieLink)
+  
+}
+
+# Returns a list of the all movies that match to the search string in the site
+listMoviesAll <- function(query, type) {
+  #Simulate a session in an html browser
   sessionMovies <- html_session(url_IMBD)
   
   results <- Searchform(sessionMovies, query, type)
   
-  ##Definir o que vamos usar como ordem de confiaça: 
-  ###O prof disse que podemos usar a estrategia que quisessemos, podemos apenas confiar na ordem dada
-  ###pelo site, ou ordenar pelo ranking, ou ordenar por maior parecençacom o titulo, etc...
-  
   return(list(results %>% html_nodes(".result_text") %>% html_text(), results))
-   
 }
 
+# Returns a list of the movies that match to the search string, by decreasing order of confidence
+listMovies <- function(query, maxNum, type) {
+  
+  r <- listMoviesAll(query, type)
+  
+  TMlist <- r[[1]]
+  
+  movieLink <- webPages(r)
+  
+  #get rankings
+  movieRanking <- lapply(movieLink, . %>% read_html() %>% html_nodes("strong span") %>% html_text())
+  movieRanking <- as.array(movieRanking)
+  
+  #get date frame with movies and their ranking
+  ResulList <- data.frame(as.array(TMlist),movieRanking)
+  names(ResulList) <- c("Movies", "Ranking")
+  ResulList$Ranking <- as.double(ResulList$Ranking)
+  
+  return(as.list((head(ResulList[order(ResulList$Ranking, decreasing=TRUE), ], maxNum))$Movies))
+}
 
-r <- listMovies("Lego")
-
-results <- r[[2]]
-##For each movie the basic information is returned as a list: 
+Type <- "tt"
+Query <- "Lego"       #search string
 #add an extra parameter that controls the maximum number of retrieved movies
-listM <- head(r[[1]], n = 10)       #top 10
+NumMovies <- 10       #top 10
+
+ResultListMovies <- listMovies(Query, NumMovies, Type)    #Demora um bom bocado a executar
+
+##For each movie the basic information is returned as a list: 
+
+# Get link from web pages of n movies
+
+FullList <- listMoviesAll(Query, Type)
+results <- FullList[2][[1]]
+movieLink <- webPages(list(results %>% html_nodes(".result_text") %>% html_text(), results))
+
+links <- matrix(nrow=10,ncol=2)
+idx <- 1
+
+for(i in 1:length(movieLink))
+  for(j in 1:length(ResultListMovies))
+    if (ResultListMovies[j][[1]] == FullList[1][[1]][i]){
+      links[idx, 1] <- movieLink[i]
+      links[idx,2] <- j
+      idx <- idx+1
+    }
+
+movieLink <- matrix(ncol = 10)
+
+for(i in 1:10) {
+  idx <- as.integer(links[i,2])
+  movieLink[idx] <- links[i,1]
+}
+movieLink <- as.character(movieLink)
 
 # Find basic information
-findBasInf <- function(m) {
-  
-  #web page
-  m %>% read_html()
-  
-  #director(s)
-  m %>% read_html() %>% html_nodes(".summary_text+ .credit_summary_item .itemprop") %>% html_text()
-  
-  #cast
-  m %>% read_html() %>% html_nodes("#titleCast .itemprop span") %>% html_text()    ##See full cast Â»????
-  
-  #description
-  m %>% read_html() %>% html_nodes(".summary_text") %>% html_text()
-  
-  #original title
-  m %>% read_html() %>% html_nodes(".originalTitle") %>% html_text()
-  
-  #runtime
-  m %>% read_html() %>% html_nodes("#titleDetails time") %>% html_text()
-  
-  #renre
-  m %>% read_html() %>% html_nodes(".subtext .itemprop") %>% html_text()
-  
-  #date
-  m %>% read_html() %>% html_nodes(".subtext a~ .ghost+ a") %>% html_text()
-  
-  #rating
-  m %>% read_html() %>% html_nodes("strong span") %>% html_text()
-  
-  #metascore
-  m %>% read_html() %>% html_nodes(".score_favorable span") %>% html_text()
-  
-  ##...
-  
-}
 
-#web page link
-movieLink <- head((results %>% html_nodes(".result_text > a") %>% html_attr("href")), n = 10)
-movieLink <- paste(url_IMBD, movieLink, sep='')
-lapply(movieLink, findBasInf(x))       ##demora a executar!!!
+##web page
+(WebPage <- lapply(movieLink, . %>% read_html()))
 
+##director(s)
+(Director_s <- lapply(movieLink, . %>% read_html() %>% html_nodes(".summary_text+ .credit_summary_item .itemprop") %>% html_text()))
 
+##cast
+(Cast <- lapply(movieLink, . %>% read_html() %>% html_nodes("#titleCast .itemprop span") %>% html_text())) ##See full cast Â»????
 
+##description
+(Description <- lapply(movieLink, . %>% read_html() %>% html_nodes(".summary_text") %>% html_text()))
+
+##storyline
+(Storyline <- lapply(movieLink, . %>% read_html() %>% html_nodes("#titleStoryLine p") %>% html_text()))
+
+##original title
+(OriginalTitle <- lapply(movieLink, . %>% read_html() %>% html_nodes(".originalTitle") %>% html_text()))
+
+##runtime
+(Runtime <-lapply(movieLink, . %>% read_html() %>% html_nodes("#titleDetails time") %>% html_text()))
+
+##genre
+(Genre <- lapply(movieLink, . %>% read_html() %>% html_nodes(".subtext .itemprop") %>% html_text()))
+
+##date
+(Date <- lapply(movieLink, . %>% read_html() %>% html_nodes(".subtext a~ .ghost+ a") %>% html_text()))
+
+##rating
+(Rating <- lapply(movieLink, . %>% read_html() %>% html_nodes("strong span") %>% html_text()))
+
+##metascore
+(Metascore <- lapply(movieLink, . %>% read_html() %>% html_nodes(".score_favorable span") %>% html_text()))
+
+##... (more informations?)
 ```
 
 
