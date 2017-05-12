@@ -176,41 +176,60 @@ movieLink <- as.character(movieLink)
 ```
 
 
+
 ###Obtain the information on all reviews from a movie
 
+We now present a set of functions to perform the task of finding all reviews for a movie, as well as the rating reviews given by the review writer.
+
+One can read, in the page [User Reviews Guidelines](http://www.imdb.com/help/show_leaf?commentsguidelines) the following: "The minimum length for reviews is 5 lines of text."
+
+With this we can see that the text field is mandatory, but the rating field is not. With that in mind, our function will return `r NA` whenever the user did not provide any rating. The rating provided is then an integer between 1 and 10, the scale given by IMDb for ratings.
+
 ```{r}
-# Lego movie:
-lego_movie_link <- "http://www.imdb.com/title/tt1490017/"
-lego_movie <- read_html(lego_movie_link)
-
-# Number of comments:
-n_comments <- as.integer(strsplit((lego_movie %>% html_nodes(".user-comments a"))[4] %>% html_text(), " ")[[1]][3])
-
-# Page with all comments (eg.: http://www.imdb.com/title/tt1490017/reviews?count=480&start=0):
-comment_page <- paste(lego_movie_link, "reviews?count=", n_comments, "&start=0", sep = "")
-
-# All reviews
-comments <- comment_page %>% read_html() %>% html_nodes("#pagecontent") %>% html_nodes("div+ p") %>% html_text()
+# Function to return the comments
+commentOfReview <- function (linkOfMovie) {
+  movie <- linkOfMovie %>% read_html()
+  
+  # Number of comments
+  n_reviews <- as.integer(strsplit((movie %>% html_nodes(".user-comments a"))[4] %>% html_text(), " ")[[1]][3])
+  
+  # Link of the page with all reviews
+  reviews_page_link <- paste(linkOfMovie, "reviews?count=", n_reviews, "&start=0", sep = "")
+  
+  comments <- reviews_page_link %>% read_html() %>% html_nodes("#pagecontent") %>% html_nodes("div+ p") %>% html_text()
+  
+  return(comments)
+}
 
 # Function to return rating of a review
-ratingOfReview <- function(x) {
+ratingOfReview <- function(linkOfMovie) {
+  movie <- linkOfMovie %>% read_html()
+  
+  # Number of comments
+  n_reviews <- as.integer(strsplit((movie %>% html_nodes(".user-comments a"))[4] %>% html_text(), " ")[[1]][3])
+  
+  # Link of the page with all reviews
+  reviews_page_link <- paste(linkOfMovie, "reviews?count=", n_reviews, "&start=0", sep = "")
+  
+  reviews_images <- reviews_page_link %>% read_html() %>% html_nodes("#tn15content") %>% html_nodes("div img")
+  
   ans <- NULL
   cnt <- 1
-  for(i in 1:length(x)) {
-    if(!is.na(tmp[i] %>% html_attr("class")) && tmp[i] %>% html_attr("class") == "avatar") {
-      if(i == length(x)) {
+  for(i in 1:length(reviews_images)) {
+    if(!is.na(reviews_images[i] %>% html_attr("class")) && reviews_images[i] %>% html_attr("class") == "avatar") {
+      if(i == length(reviews_images)) {
         ans[cnt] <- NA
         cnt <- cnt + 1
       }
       else {
-        if(!is.na(tmp[i + 1] %>% html_attr("class")) && tmp[i + 1] %>% html_attr("class") == "avatar") {
+        if(!is.na(reviews_images[i + 1] %>% html_attr("class")) && reviews_images[i + 1] %>% html_attr("class") == "avatar") {
           ans[cnt] <- NA
           cnt <- cnt + 1
         }
       }
     }
     else {
-      ans[cnt] <- x[i] %>% html_attr("alt")
+      ans[cnt] <- as.integer(substr(reviews_images[i] %>% html_attr("alt"), 1, 1))
       cnt <- cnt + 1
     }
   }
@@ -218,10 +237,22 @@ ratingOfReview <- function(x) {
   return(ans)
 }
 
-# Stars given (to be solved):
-tmp <- comment_page %>% read_html() %>% html_nodes("#tn15content") %>% html_nodes("div img")
-stars <- ratingOfReview(tmp)
+# Function to return the comments and stars given in review
+fullReviews <- function(linkOfMovie) {
+  ans <- data.frame(comment = commentOfReview(linkOfMovie), rating = ratingOfReview(linkOfMovie), stringsAsFactors = FALSE)
+  
+  return(ans)
+}
 ```
+
+We can try now this with the Lego Movie, as an example:
+
+```{r, eval=FALSE}
+# Lego movie:
+lego_movie_link <- "http://www.imdb.com/title/tt1490017/"
+fullReviews(lego_movie_link)
+```
+
 
 
 ###Model to predict the grade
