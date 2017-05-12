@@ -254,14 +254,31 @@ We can try now this with the Lego Movie, as an example:
 ```{r, eval=FALSE}
 # Lego movie:
 lego_movie_link <- "http://www.imdb.com/title/tt1490017/"
-fullReviews(lego_movie_link)
+dat <- fullReviews(lego_movie_link)
 ```
-
-
 
 ###Model to predict the grade
 
 ####Build a data set for learning
+
+```{r, eval=FALSE}
+#First, let's build a corpus of directories with the reviews of the movie "Lego" so that we can perform the following preprocessing tasks.
+corp <- Corpus(VectorSource(dat$comment))
+
+#The next thing to do is preprocessing the corpus: Clean-ups:
+corp <-  tm_map(corp, stripWhitespace)                      #Strip extra whitespace
+corp <-  tm_map(corp, content_transformer(tolower))         #Turn everything to lowercase
+#corp <-  tm_map(corp, removeWords, stopwords("the", "that", ...?))    #Remove stopwords
+corp <-  tm_map(corp, removePunctuation)                    #Remove punctuation
+##Neste caso concreto acho que vale a pensa manter os numero? pelo intuito de que no texto pode apresentar uma classificação numerica e nao associa-la no campo das stars ?
+#corp <-  tm_map(corp, removeNumbers)                        #Remove numbers
+
+dtm <- DocumentTermMatrix(corp)
+dtm <- removeSparseTerms(dtm, 0.6)                        #Remove sparse terms
+
+#Data set for learning
+dataSet <- cbind(data.frame(as.matrix(dtm), class = dat$rating))
+```
 
 ####Try a few prediction models and draw conclusions
 
