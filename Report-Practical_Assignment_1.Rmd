@@ -139,40 +139,44 @@ movieLink <- as.character(movieLink)
 
 # Find basic information
 
-##web page
-(WebPage <- lapply(movieLink, . %>% read_html()))
+listBasInf <- list()
 
-##director(s)
-(Director_s <- lapply(movieLink, . %>% read_html() %>% html_nodes(".summary_text+ .credit_summary_item .itemprop") %>% html_text()))
-
-##cast
-(Cast <- lapply(movieLink, . %>% read_html() %>% html_nodes("#titleCast .itemprop span") %>% html_text())) ##See full cast Â»????
-
-##description
-(Description <- lapply(movieLink, . %>% read_html() %>% html_nodes(".summary_text") %>% html_text()))
-
-##storyline
-(Storyline <- lapply(movieLink, . %>% read_html() %>% html_nodes("#titleStoryLine p") %>% html_text()))
-
-##original title
-(OriginalTitle <- lapply(movieLink, . %>% read_html() %>% html_nodes(".originalTitle") %>% html_text()))
-
-##runtime
-(Runtime <-lapply(movieLink, . %>% read_html() %>% html_nodes("#titleDetails time") %>% html_text()))
-
-##genre
-(Genre <- lapply(movieLink, . %>% read_html() %>% html_nodes(".subtext .itemprop") %>% html_text()))
-
-##date
-(Date <- lapply(movieLink, . %>% read_html() %>% html_nodes(".subtext a~ .ghost+ a") %>% html_text()))
-
-##rating
-(Rating <- lapply(movieLink, . %>% read_html() %>% html_nodes("strong span") %>% html_text()))
-
-##metascore
-(Metascore <- lapply(movieLink, . %>% read_html() %>% html_nodes(".score_favorable span") %>% html_text()))
-
-##... (more informations?)
+for(i in 1:NumMovies) {
+  l <- list()
+  j <- 1
+  
+  ##web page
+  l[[j]] <- list(WebPage = (movieLink[i] %>% read_html()))
+  j <- j+1
+  ##cast
+  l[[j]] <- list(Cast = (movieLink[i] %>% read_html() %>% html_nodes("#titleCast .itemprop span") %>% html_text()))
+  j <- j+1
+  ##description
+  l[[j]] <- list(Description = (movieLink[i] %>% read_html() %>% html_nodes(".summary_text") %>% html_text()))
+  j <- j+1
+  ##storyline
+  l[[j]] <- list(Storyline = (movieLink[i] %>% read_html() %>% html_nodes("#titleStoryLine p") %>% html_text()))
+  j <- j+1
+  ##original title
+  l[[j]] <- list(OriginalTitle = (movieLink[i] %>% read_html() %>% html_nodes(".originalTitle") %>% html_text()))
+  j <- j+1
+  ##runtime
+  l[[j]] <- list(Runtime = (movieLink[i] %>% read_html() %>% html_nodes("#titleDetails time") %>% html_text())) 
+  j <- j+1
+  ##genre
+  l[[j]] <- list(Genre = (movieLink[i] %>% read_html() %>% html_nodes(".subtext .itemprop") %>% html_text()))
+  j <- j+1
+  ##date
+  l[[j]] <- list(Date = (movieLink[i] %>% read_html() %>% html_nodes(".subtext a~ .ghost+ a") %>% html_text()))
+  j <- j+1
+  ##rating
+  l[[j]] <- list(Ratink = (movieLink[i] %>% read_html() %>% html_nodes("strong span") %>% html_text()))
+  j <- j+1
+  ##metascore
+  l[[j]] <- list(Metascore = movieLink[i] %>% read_html() %>% html_nodes(".score_favorable span") %>% html_text())
+  
+  listBasInf[[i]] <- list(l)
+}
 ```
 
 
