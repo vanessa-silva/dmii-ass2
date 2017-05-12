@@ -192,10 +192,35 @@ comment_page <- paste(lego_movie_link, "reviews?count=", n_comments, "&start=0",
 # All reviews
 comments <- comment_page %>% read_html() %>% html_nodes("#pagecontent") %>% html_nodes("div+ p") %>% html_text()
 
+# Function to return rating of a review
+ratingOfReview <- function(x) {
+  ans <- NULL
+  cnt <- 1
+  for(i in 1:length(x)) {
+    if(!is.na(tmp[i] %>% html_attr("class")) && tmp[i] %>% html_attr("class") == "avatar") {
+      if(i == length(x)) {
+        ans[cnt] <- NA
+        cnt <- cnt + 1
+      }
+      else {
+        if(!is.na(tmp[i + 1] %>% html_attr("class")) && tmp[i + 1] %>% html_attr("class") == "avatar") {
+          ans[cnt] <- NA
+          cnt <- cnt + 1
+        }
+      }
+    }
+    else {
+      ans[cnt] <- x[i] %>% html_attr("alt")
+      cnt <- cnt + 1
+    }
+  }
+  
+  return(ans)
+}
+
 # Stars given (to be solved):
 tmp <- comment_page %>% read_html() %>% html_nodes("#tn15content") %>% html_nodes("div img")
-stars <- tmp[seq(2, length(tmp), by = 2)]
-#html_attr("alt")
+stars <- ratingOfReview(tmp)
 ```
 
 
