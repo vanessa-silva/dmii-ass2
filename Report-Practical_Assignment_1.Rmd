@@ -317,7 +317,7 @@ findAssocs(dtm, "masterpiece", 0.5)
 
 We can now find wordclouds, which are a graphical represantition of the frequencies of terms in a corpus.
 
-```{r}
+```{r, fig.align="center"}
 # Simple wordcloud with the 200 most frequent words
 wordcloud(corp, colors = rainbow(20), max.words = 200)
 ```
@@ -326,7 +326,7 @@ As we can see, this is not that interesting, since words like "the" and "and" ar
 
 We need to remove what are called **stopwords**.
 
-```{r}
+```{r, fig.align="center"}
 corp <- tm_map(corp, removeWords, stopwords("english"))
 wordcloud(corp, colors = rainbow(20), max.words = 200)
 ```
