@@ -28,6 +28,9 @@ To use web and text mining to extract and study important informations in the mo
 #Install the necessary packages
 install.packages("rvest")
 install.packages("tm")
+install.packages("wordcloud")
+install.packages("SnowballC")
+install.packages("qdap")
 ```
 
 
@@ -35,6 +38,8 @@ install.packages("tm")
 #Load the necessary packages
 library(rvest)
 library(tm)
+library(wordcloud)
+library(qdap)
 ```
 
 
