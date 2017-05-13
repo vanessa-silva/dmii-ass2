@@ -283,3 +283,98 @@ dataSet <- cbind(data.frame(as.matrix(dtm), class = dat$rating))
 ####Try a few prediction models and draw conclusions
 
 ###Summarise the reviews of a movie
+
+The set we built for learning can and will be used in this section, but without removing the sparse items.
+
+```{r}
+dtm <- DocumentTermMatrix(corp)
+```
+
+
+We can start by doing some basic frequency analysis.
+
+```{r, eval=FALSE}
+# Find the most frequent words in each review with the following:
+findMostFreqTerms(dtm)
+```
+
+```{r}
+# Find the words that occur more than 50 times
+findFreqTerms(dtm, 50)
+```
+
+If we analyse the words that occur more than 50 times, we can see that "arnett" is one of the words that users used in their reviews frequently. Since one of the voices in this movie that we are analysing is from actor Will Arnett, we can infer that users talk about what they think his performance was like in this specific movie. We can also see words like "interesting", "adventure", "creative", which are words that are usually used in positive comments, which is in syntony with the movie's score on IMDb (7.8/10 stars).
+
+We can also be interested in finding correlations between words.
+
+```{r}
+# Words with a correlation higher than 0.3 with the word "adventure":
+findAssocs(dtm, "adventure", 0.3)
+
+# Words with a correlation higher than 0.5 with the word "masterpiece":
+findAssocs(dtm, "masterpiece", 0.5)
+```
+
+We can now find wordclouds, which are a graphical represantition of the frequencies of terms in a corpus.
+
+```{r}
+# Simple wordcloud with the 200 most frequent words
+wordcloud(corp, colors = rainbow(20), max.words = 200)
+```
+
+As we can see, this is not that interesting, since words like "the" and "and" are really frequent and are words that do not describe the movie.
+
+We need to remove what are called **stopwords**.
+
+```{r}
+corp <- tm_map(corp, removeWords, stopwords("english"))
+wordcloud(corp, colors = rainbow(20), max.words = 200)
+```
+
+Yet, we can see words like animated and animation, which are words that can be used to describe the same thing. We could stem the words, keeping only the "root" of each word, but we will not do that as the results produced do not seem to be that different from what was previously done.
+
+####Positive and negative words in reviews
+
+What we do now is generate two wordclouds with positive and negative words in reviews. For this, we need the package *qdap*, which requires Java to be up to date.
+
+**NOTE**: Mac OS X users might have to run the following line in a terminal before loading library qdap:
+
+> sudo ln -s $(/usr/libexec/java_home)/jre/lib/server/libjvm.dylib /usr/local/lib
+
+as seen in this Stack Overflow [thread](http://stackoverflow.com/questions/30738974/rjava-load-error-in-rstudio-r-after-upgrading-to-osx-yosemite), as well as in this [source](https://github.com/snowflakedb/dplyr-snowflakedb/wiki/Configuring-R-rJava-RJDBC-on-Mac-OS-X). 
+
+```{r}
+# Calculate the polarity from qdap dictionary
+pol <- polarity(corp$content)
+
+# Positive words:
+p <- pol$all[,4]
+
+# Negative words:
+n <- pol$all[,5]
+
+# Positive words list
+positive_words <- unique(setdiff(unlist(p),"-"))
+# Negative words list
+negative_words <- unique(setdiff(unlist(n),"-"))
+```
+
+We can now generate the wordcloud only with positive words.
+
+```{r, fig.align="center"}
+pos.tdm <- dtm[,which(colnames(dtm) %in% positive_words)]
+m <- as.matrix(pos.tdm)
+v <- sort(colSums(m), decreasing = TRUE)
+wordcloud(names(v), v, max.words=100,colors=brewer.pal(8, "Dark2"))
+title(sub = "Positive Words - Wordcloud")
+```
+
+We can also generate the wordcloud only with the negative words.
+
+```{r, fig.align="center"}
+neg.tdm <- dtm[,which(colnames(dtm) %in% negative_words) ]
+m <- as.matrix(neg.tdm)
+v <- sort(colSums(m), decreasing = TRUE)
+wordcloud(names(v), v, max.words=100,colors=brewer.pal(8, "Dark2"))         
+title(sub = "Negative Words - Wordcloud")
+```
