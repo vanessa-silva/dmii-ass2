@@ -6,7 +6,7 @@ output: html_document
 ---
 <br /> 
 
-This report follows the analysis of [IMDB](http://www.imdb.com) movies and their reviews, is the retrieval of relevant information on movies and the analysis of the reviews (and respective scores) assigned by users of the site to the movies.
+This report follows the analysis of [IMDB](http://www.imdb.com) movies and their reviews, is the retrieval of relevant information on movies and the analysis of the reviews (and the corresponding scores) assigned by users.
 For this we will use our knowledge regarding web and text mining.
 
 *Web Mining* consists of extracting information from the content of the pages, their links, and users' browsing logs, using data mining tools. 
@@ -31,6 +31,10 @@ install.packages("tm")
 install.packages("wordcloud")
 install.packages("SnowballC")
 install.packages("qdap")
+install.packages("e1071")
+install.packages("earth")
+install.packages("DMwR")
+install.packages("performanceEstimation")
 ```
 
 
@@ -40,6 +44,10 @@ library(rvest)
 library(tm)
 library(wordcloud)
 library(qdap)
+library(e1071)
+library(earth)
+library(DMwR)
+library(performanceEstimation) 
 ```
 
 
@@ -51,6 +59,11 @@ Using the information available in the IMDB site we will accomplish a series of 
 ###Find basic information
 
 First we will find basic information as web page, diretor, cast, etc. of a movie based on a query string of the title.
+
+In order to do this, we present a function (``listMovies``) that the user can call with a search string and a limit number (parameter we want to add) from the list of movies that will be returned corresponding to that string, since the string can be incomplete and therefore potentially matching to more than one movie in the site's database. The list returned by the function is ordered decreasingly by the order of confidence, where we stipulate to be the rating of the films.
+
+``listMovies`` is aided by a set of other functions presented (``Searchform``, ``listMoviesAll`` e ``webPages``), which, respectively, help to: submit the form in `imdb.com` with the search string, find the list of all the movies that match the string that the site presents, and get the links from the web pages of all those movies.
+
 
 ```{r}
 #Store web url
@@ -88,7 +101,8 @@ listMoviesAll <- function(query, type) {
 }
 
 # Returns a list of the movies that match to the search string, by decreasing order of confidence
-listMovies <- function(query, maxNum, type) {
+listMovies <- function(query, maxNum) {
+  type <- "tt"
   
   r <- listMoviesAll(query, type)
   
@@ -108,22 +122,23 @@ listMovies <- function(query, maxNum, type) {
   return(as.list((head(ResulList[order(ResulList$Ranking, decreasing=TRUE), ], maxNum))$Movies))
 }
 
-Type <- "tt"
 Query <- "Lego"       #search string
-#add an extra parameter that controls the maximum number of retrieved movies
-NumMovies <- 10       #top 10
+NumMovies <- 10       #extra parameter that controls the maximum number of retrieved movies
 
-ResultListMovies <- listMovies(Query, NumMovies, Type)    #Demora um bom bocado a executar
+(ResultListMovies <- listMovies(Query, NumMovies))
 
-##For each movie the basic information is returned as a list: 
+```
 
+After getting the movie list we will finally get the basic information for each movie. For this we need the links of the web page of each film. Since we change the order as the list is presented and we limit the size of the list, we need to do some manipulation to get the links correctly, since the ``webPages`` function returns the links of all the movies in the order they are presented on the site.
+
+```{r}
 # Get link from web pages of n movies
 
-FullList <- listMoviesAll(Query, Type)
+FullList <- listMoviesAll(Query, "tt")
 results <- FullList[2][[1]]
 movieLink <- webPages(list(results %>% html_nodes(".result_text") %>% html_text(), results))
 
-links <- matrix(nrow=10,ncol=2)
+links <- matrix(nrow=NumMovies,ncol=2)
 idx <- 1
 
 for(i in 1:length(movieLink))
@@ -134,16 +149,21 @@ for(i in 1:length(movieLink))
       idx <- idx+1
     }
 
-movieLink <- matrix(ncol = 10)
+movieLink <- matrix(ncol = NumMovies)
 
 for(i in 1:10) {
   idx <- as.integer(links[i,2])
   movieLink[idx] <- links[i,1]
 }
-movieLink <- as.character(movieLink)
 
-# Find basic information
+(movieLink <- as.character(movieLink))
+```
 
+Having the link to the movie's webpage and the CSS selectors we want, we can finally get the basic information for each movie. We will present the following basic information: webpage, original title, genre, rating, description, storyline, cast, date, runtime and metascore, on the form of list for each movie, each film being an element of a list as well.
+
+We can see that some movie sites do not contain some of the requested information, obtaining the following result *character(0)*.
+
+```{r}
 listBasInf <- list()
 
 for(i in 1:NumMovies) {
@@ -153,8 +173,14 @@ for(i in 1:NumMovies) {
   ##web page
   l[[j]] <- list(WebPage = (movieLink[i] %>% read_html()))
   j <- j+1
-  ##cast
-  l[[j]] <- list(Cast = (movieLink[i] %>% read_html() %>% html_nodes("#titleCast .itemprop span") %>% html_text()))
+  ##original title
+  l[[j]] <- list(OriginalTitle = (movieLink[i] %>% read_html() %>% html_nodes(".originalTitle") %>% html_text()))
+  j <- j+1
+  ##genre
+  l[[j]] <- list(Genre = (movieLink[i] %>% read_html() %>% html_nodes(".subtext .itemprop") %>% html_text()))
+  j <- j+1
+  ##rating
+  l[[j]] <- list(Ratink = (movieLink[i] %>% read_html() %>% html_nodes("strong span") %>% html_text()))
   j <- j+1
   ##description
   l[[j]] <- list(Description = (movieLink[i] %>% read_html() %>% html_nodes(".summary_text") %>% html_text()))
@@ -162,28 +188,23 @@ for(i in 1:NumMovies) {
   ##storyline
   l[[j]] <- list(Storyline = (movieLink[i] %>% read_html() %>% html_nodes("#titleStoryLine p") %>% html_text()))
   j <- j+1
-  ##original title
-  l[[j]] <- list(OriginalTitle = (movieLink[i] %>% read_html() %>% html_nodes(".originalTitle") %>% html_text()))
-  j <- j+1
-  ##runtime
-  l[[j]] <- list(Runtime = (movieLink[i] %>% read_html() %>% html_nodes("#titleDetails time") %>% html_text())) 
-  j <- j+1
-  ##genre
-  l[[j]] <- list(Genre = (movieLink[i] %>% read_html() %>% html_nodes(".subtext .itemprop") %>% html_text()))
+  ##cast
+  l[[j]] <- list(Cast = (movieLink[i] %>% read_html() %>% html_nodes("#titleCast .itemprop span") %>% html_text()))
   j <- j+1
   ##date
   l[[j]] <- list(Date = (movieLink[i] %>% read_html() %>% html_nodes(".subtext a~ .ghost+ a") %>% html_text()))
   j <- j+1
-  ##rating
-  l[[j]] <- list(Ratink = (movieLink[i] %>% read_html() %>% html_nodes("strong span") %>% html_text()))
+  ##runtime
+  l[[j]] <- list(Runtime = (movieLink[i] %>% read_html() %>% html_nodes("#titleDetails time") %>% html_text())) 
   j <- j+1
   ##metascore
   l[[j]] <- list(Metascore = movieLink[i] %>% read_html() %>% html_nodes(".score_favorable span") %>% html_text())
   
   listBasInf[[i]] <- list(l)
 }
-```
 
+listBasInf
+```
 
 
 ###Obtain the information on all reviews from a movie
@@ -264,28 +285,99 @@ dat <- fullReviews(lego_movie_link)
 
 ###Model to predict the grade
 
+The goal now is to build a model that can predict the grade of the review based on your text.
+
 ####Build a data set for learning
 
+For this, we will first construct a data set (``dataSet``) suitable for learning of this model(s).
+
+First, let's build a corpus of directories with the reviews of the movie (we will continue with the previous example of the film "Lego") so that we can perform the following preprocessing tasks (Clean-ups).
+
 ```{r, eval=FALSE}
-#First, let's build a corpus of directories with the reviews of the movie "Lego" so that we can perform the following preprocessing tasks.
 corp <- Corpus(VectorSource(dat$comment))
 
-#The next thing to do is preprocessing the corpus: Clean-ups:
+#Preprocessing the corpus: Clean-ups
 corp <-  tm_map(corp, stripWhitespace)                      #Strip extra whitespace
 corp <-  tm_map(corp, content_transformer(tolower))         #Turn everything to lowercase
-#corp <-  tm_map(corp, removeWords, stopwords("the", "that", ...?))    #Remove stopwords
 corp <-  tm_map(corp, removePunctuation)                    #Remove punctuation
-##Neste caso concreto acho que vale a pensa manter os numero? pelo intuito de que no texto pode apresentar uma classificação numerica e nao associa-la no campo das stars ?
-#corp <-  tm_map(corp, removeNumbers)                        #Remove numbers
+corp <-  tm_map(corp, removeNumbers)                        #Remove numbers
+corp1 <- tm_map(corp, removeWords, stopwords("english"))    #Remove stopwords
 
-dtm <- DocumentTermMatrix(corp)
-dtm <- removeSparseTerms(dtm, 0.6)                        #Remove sparse terms
+dtm <- DocumentTermMatrix(corp1)
+(dtm <- removeSparseTerms(dtm, 0.8))                        #Remove sparse terms
 
 #Data set for learning
-dataSet <- cbind(data.frame(as.matrix(dtm), class = dat$rating))
+(dataSet <- cbind(data.frame(as.matrix(dtm), class = dat$rating)))
 ```
 
-####Try a few prediction models and draw conclusions
+####Prediction models and Conclusions
+
+Using the previous data set we will try a few prediction models and draw some conclusions from this comparison. 
+
+Initially we will use this data set for learning the SVM model to predict the grade based on the text.
+
+Later we will try the following models: SVMs (linear and radial kernel), Tree-based Models and MARS.
+
+To compare these models in order to select the best(s) we will take advantage of the functionalities of the package `performanceEstimation`, where in the estimation task we use the mean absolute error (mae) and the mean squared error (mse) as evaluation metric and we use the cross-validation (CV) method.
+
+```{r, eval=FALSE}
+dataSetTest <- dataSet[which(is.na(dataSet$class)), ]       #Save lines with NA's to in the end predict your star
+
+dataSet <- dataSet[-which(is.na(dataSet$class)), ]          #Remove lines with NA's
+dataSet$class <- as.numeric(dataSet$class)
+
+#SVM model
+
+##Splitting the data into a training and test set 
+sp <- sample(1: nrow(dataSet), as.integer(0.7*nrow(dataSet)))
+tr <- dataSet[sp, ]
+ts <- dataSet[-sp, ]
+
+model <- svm(class ~ ., tr)             #obtain the model with the training set
+preds <- predict(model, ts)             #apply it to obtain predictions for the test set
+
+##Calculate the error rate of the predictions 
+cm <- table(preds, ts$class)            #confusion matrix
+(err <- 1- sum(diag(cm))/sum(cm)) 
+
+#Trying prediction models
+exp <- performanceEstimation(
+  PredTask(class ~ ., dataSet),
+  c( Workflow(learner="earth"),
+     Workflow(learner="rpartXse"),
+    workflowVariants(learner="svm", learner.pars=list(kernel=c("linear", "radial")))
+  ),
+  EstimationTask(metrics=c("mae", "mse"), method=CV())
+)
+
+#Some results
+summary(exp)
+
+plot(exp)
+
+topPerformers(exp)
+
+rankWorkflows(exp,2)
+```
+
+We can easily see that the methods with best performing are the SVM with radial kernel for the evaluation metric mean absolute error and Tree-based model for mean squared error.
+
+Having said this, we will predict (using these two methods) the ratings of previously saved reviews (reviews whose users did not assign stars).
+
+```{r, eval=FALSE}
+##SVM radial kernel
+modelSVM2 <- svm(class ~ ., dataSet, kernel = "radial")
+(predSVM2 <- predict(modelSVM2, dataSetTest))             ##Porque não preve? escrever conclusoes
+
+##Tree-based
+modelTB <- rpartXse(class ~ ., dataSet)
+(predTB <- predict(modelTB, dataSetTest))
+```
+
+We can easily verify that tree-based model predicted for all reviews without evaluation, an grade of 5.612981 (ie a 5-star assignment if we round by default).
+But we should note that this model has an average absolute deviation between the predictions and true values of 3.014062 which means that this 5-star rating may actually be approximately 2 stars or 8 stars.
+
+We can then conclude that even the best error values (MAE of 2.791419 and MSE of 10.85248) obtained here are still quite relevant for this problem itself, given that the scale we have is 10 (stars) and an average absolute deviation of almost 3 units is quite relevant for the consideration of a positive opinion, an average opinion and a negative opinion.
 
 ###Summarise the reviews of a movie
 
