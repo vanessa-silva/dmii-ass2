@@ -6,7 +6,7 @@ output: html_document
 ---
 <br /> 
 
-This report follows the analysis of [IMDB](http://www.imdb.com) movies and their reviews, is the retrieval of relevant information on movies and the analysis of the reviews (and the corresponding scores) assigned by users.
+This report follows the analysis of [IMDb](http://www.imdb.com) movies and their reviews, is the retrieval of relevant information on movies and the analysis of the reviews (and the corresponding scores) assigned by users.
 For this we will use our knowledge regarding web and text mining.
 
 *Web Mining* consists of extracting information from the content of the pages, their links, and users' browsing logs, using data mining tools. 
@@ -14,18 +14,18 @@ Thus, we can divide Web Mining into three variants: Web Content Mining; Web Stru
 
 *Text Mining* consists of extracting useful information from a collection of documents.
 Involves basic pre-processing/text mining operations, such as identification/extraction of representative features, and identification of complex patterns as, e.g. relationships between previously identified concepts.
-Text Mining exploits techniques/methodologies from data mining, machine learning, information retrieval, and corpus-based computational linguistics. Where corpus is a collection of documents.
+Text Mining exploits techniques/methodologies from data mining, machine learning, information retrieval, and corpus-based computational linguistics, where corpus is a collection of documents.
 
 
 **The Goal**
 
-To use web and text mining to extract and study important informations in the movies and their reviews, of IMDB website.
+To use web and text mining to extract and study important informations in the movies and their reviews from the IMDb website.
 
 
 ##Necessary Packages
 
 ```{r, eval=FALSE, message=FALSE, warning=FALSE, results='hide'}
-#Install the necessary packages
+# Install the necessary packages
 install.packages("rvest")
 install.packages("tm")
 install.packages("wordcloud")
@@ -39,7 +39,7 @@ install.packages("performanceEstimation")
 
 
 ```{r, message=FALSE, warning=FALSE}
-#Load the necessary packages
+# Load the necessary packages
 library(rvest)
 library(tm)
 library(wordcloud)
@@ -53,20 +53,20 @@ library(performanceEstimation)
 
 ##Tasks
 
-Using the information available in the IMDB site we will accomplish a series of tasks below.
+Using the information available in the IMDb site we will accomplish a series of tasks below.
 
 
 ###Find basic information
 
 First we will find basic information as web page, diretor, cast, etc. of a movie based on a query string of the title.
 
-In order to do this, we present a function (``listMovies``) that the user can call with a search string and a limit number (parameter we want to add) from the list of movies that will be returned corresponding to that string, since the string can be incomplete and therefore potentially matching to more than one movie in the site's database. The list returned by the function is ordered decreasingly by the order of confidence, where we stipulate to be the rating of the films.
+In order to do this, we present a function (``listMovies``) that the user can call with a search string and a limit number (parameter we want to add) from the list of movies that will be returned corresponding to that string, since the string can be incomplete and therefore potentially match more than one movie in the site's database. The list returned by the function is ordered decreasingly by the order of confidence, where we stipulate to be the rating of the films.
 
-``listMovies`` is aided by a set of other functions presented (``Searchform``, ``listMoviesAll`` e ``webPages``), which, respectively, help to: submit the form in `imdb.com` with the search string, find the list of all the movies that match the string that the site presents, and get the links from the web pages of all those movies.
+``listMovies`` is aided by a set of other functions presented (``Searchform``, ``listMoviesAll`` and ``webPages``), which, respectively, help to: submit the form in `imdb.com` with the search string, find the list of all  movies matching the string that the site presents, and get the links from the web pages of all those movies.
 
 
 ```{r}
-#Store web url
+# Store web url
 url_IMBD <- "http://www.imdb.com/"
 
 # Submit the form on imdb.com for a movie description
@@ -82,15 +82,15 @@ webPages <- function(listResults) {
   
   results <- listResults[[2]]
   
-  #get web page link
+  # Get web page link
   movieLink <- (results %>% html_nodes(".result_text > a") %>% html_attr("href"))
-  movieLink <- paste(url_IMBD, movieLink, sep='')
+  movieLink <- paste(url_IMBD, substring(movieLink, 2), sep='')
   
   return(movieLink)
   
 }
 
-# Returns a list of the all movies that match to the search string in the site
+# Returns a list of all movies matching the search string in the site
 listMoviesAll <- function(query, type) {
   #Simulate a session in an html browser
   sessionMovies <- html_session(url_IMBD)
@@ -100,7 +100,7 @@ listMoviesAll <- function(query, type) {
   return(list(results %>% html_nodes(".result_text") %>% html_text(), results))
 }
 
-# Returns a list of the movies that match to the search string, by decreasing order of confidence
+# Returns a list of the movies matching the search string, by decreasing order of confidence
 listMovies <- function(query, maxNum) {
   type <- "tt"
   
@@ -110,24 +110,35 @@ listMovies <- function(query, maxNum) {
   
   movieLink <- webPages(r)
   
-  #get rankings
+  # get rankings
   movieRanking <- lapply(movieLink, . %>% read_html() %>% html_nodes("strong span") %>% html_text())
   movieRanking <- as.array(movieRanking)
   
-  #get date frame with movies and their ranking
+  # get data frame with movies and their ranking
   ResulList <- data.frame(as.array(TMlist),movieRanking)
   names(ResulList) <- c("Movies", "Ranking")
   ResulList$Ranking <- as.double(ResulList$Ranking)
   
   return(as.list((head(ResulList[order(ResulList$Ranking, decreasing=TRUE), ], maxNum))$Movies))
 }
+```
 
+We can now use this function ``listMovies`` with the Lego Movie.
+
+```{r}
 Query <- "Lego"       #search string
 NumMovies <- 10       #extra parameter that controls the maximum number of retrieved movies
-
-(ResultListMovies <- listMovies(Query, NumMovies))
-
 ```
+
+```{r, eval=FALSE}
+(ResultListMovies <- listMovies(Query, NumMovies))
+```
+
+
+```{r, message=FALSE, warning=FALSE, include=FALSE}
+load("ResultListMovies.Rdata")
+```
+
 
 After getting the movie list we will finally get the basic information for each movie. For this we need the links of the web page of each film. Since we change the order as the list is presented and we limit the size of the list, we need to do some manipulation to get the links correctly, since the ``webPages`` function returns the links of all the movies in the order they are presented on the site.
 
@@ -163,7 +174,7 @@ Having the link to the movie's webpage and the CSS selectors we want, we can fin
 
 We can see that some movie sites do not contain some of the requested information, obtaining the following result *character(0)*.
 
-```{r}
+```{r, message=FALSE, warning=FALSE, eval = FALSE}
 listBasInf <- list()
 
 for(i in 1:NumMovies) {
@@ -224,6 +235,7 @@ commentOfReview <- function (linkOfMovie) {
   n_reviews <- as.integer(strsplit((movie %>% html_nodes(".user-comments a"))[4] %>% html_text(), " ")[[1]][3])
   
   # Link of the page with all reviews
+  linkOfMovie <- gsub("\\?ref_=fn_tt_tt_[0-9]*", "", linkOfMovie)
   reviews_page_link <- paste(linkOfMovie, "reviews?count=", n_reviews, "&start=0", sep = "")
   
   comments <- reviews_page_link %>% read_html() %>% html_nodes("#pagecontent") %>% html_nodes("div+ p") %>% html_text()
@@ -239,6 +251,7 @@ ratingOfReview <- function(linkOfMovie) {
   n_reviews <- as.integer(strsplit((movie %>% html_nodes(".user-comments a"))[4] %>% html_text(), " ")[[1]][3])
   
   # Link of the page with all reviews
+  linkOfMovie <- gsub("\\?ref_=fn_tt_tt_[0-9]*", "", linkOfMovie)
   reviews_page_link <- paste(linkOfMovie, "reviews?count=", n_reviews, "&start=0", sep = "")
   
   reviews_images <- reviews_page_link %>% read_html() %>% html_nodes("#tn15content") %>% html_nodes("div img")
@@ -277,7 +290,7 @@ fullReviews <- function(linkOfMovie) {
 
 We can try now this with the Lego Movie, as an example:
 
-```{r, eval=FALSE}
+```{r}
 # Lego movie:
 lego_movie_link <- "http://www.imdb.com/title/tt1490017/"
 dat <- fullReviews(lego_movie_link)
@@ -286,7 +299,7 @@ head(dat)
 
 ###Model to predict the grade
 
-The goal now is to build a model that can predict the grade of the review based on your text.
+The goal now is to build a model that can predict the grade of the review based on the text of such review.
 
 ####Build a data set for learning
 
@@ -294,26 +307,26 @@ For this, we will construct a data set (``dataSet``) suitable for learning of th
 
 First, let's build a Corpus (a set of documents) with the reviews of the movie (we will continue with the previous example of the film "Lego") so that we can perform the preprocessing tasks (Clean-ups).
 
-There are many ways of importing documents into a tm Corpus object. In this case we will import documents whitch are stored as a vector of strings (one per text document). This is the goal of the ``VectorSource()`` call - to tell the function VCorpus that the Corpus is to be read from a series of reviews in a vector of strings (previously created data frame column). 
+There are many ways of importing documents into a **tm** Corpus object. In this case we will import documents whitch are stored as a vector of strings (one per text document). This is the goal of the ``VectorSource()`` call - to tell the function VCorpus that the Corpus is to be read from a series of reviews in a vector of strings (previously created data frame column). 
 
-```{r, eval=FALSE}
+```{r, message=FALSE, warning=FALSE}
 (corp <- VCorpus(VectorSource(dat$comment)))                #Create a corpus using the reviews
 ```
 
 For the preprocessing task let's use the ``tm_map()`` function of package **tm**, this function is one of the most important because it allows us to apply transformations to the texts forming a Corpus.
 Transformations basically consist in applying a function to each of the texts forming a Corpus, removing information that carries no information for our goal.
 
-Let's then remove white space, put everything in lowercase, removed punctuation characters and removed the numbers in the documents.
-Let's go too create a representation for each document using a bag of words approach. Some of the words on any text are too common to help in our goal, an example are stop words that occur on any language, which must be removed. Too most words have many variants (e.g. “bring” and “bringing”), presenting the same concept and thus it makes sense to use a single descriptor for each of these concepts. So we should carry out the task of word stemming that picks the “root” of each word.
+Let's then remove white spaces, put everything in lowercase, remove punctuation characters and remove the numbers in the documents.
+Let's also create a representation for each document using a bag of words approach. Some of the words on any text are too common to help in our goal, an example are stop words that occur on any language, which must be removed. Most words have many variants (e.g. “bring” and “bringing”), presenting the same concept and thus it makes sense to use a single descriptor for each of these concepts. So we should carry out the task of word stemming that picks the “root” of each word.
 
 ```{r}
 #Preprocessing the corpus: Clean-ups
-corp <-  tm_map(corp, stripWhitespace)                      #Strip extra whitespace
-corp <-  tm_map(corp, content_transformer(tolower))         #Turn everything to lowercase
-corp <-  tm_map(corp, removePunctuation)                    #Remove punctuation
-corp <-  tm_map(corp, removeNumbers)                        #Remove numbers
-corp1 <- tm_map(corp, removeWords, stopwords("english"))    #Remove stopwords
-corp1 <- tm_map(corp1, stemDocument)                        #Stemming the words (keeping only the "root" of each word)
+corp <-  tm_map(corp, stripWhitespace)                      # Strip extra whitespace
+corp <-  tm_map(corp, content_transformer(tolower))         # Turn everything to lowercase
+corp <-  tm_map(corp, removePunctuation)                    # Remove punctuation
+corp <-  tm_map(corp, removeNumbers)                        # Remove numbers
+corp1 <- tm_map(corp, removeWords, stopwords("english"))    # Remove stopwords
+corp1 <- tm_map(corp1, stemDocument)                        # Stemming the words (keeping only the "root" of each word)
 ```
 
 Now let's create document term matrices using the ``DocumentTermMatrix()`` function. These are matrices that contain one row per document and where the columns are terms (typically words) appearing in all corpus. By default the matrix is filled with term frequencies.
@@ -326,7 +339,7 @@ inspect(dtm[, 10:11])
 We can see that each document is still represented by many terms. We may carry out a further cleaning of some terms with the help of the function ``removeSparseTerms()`` that removes the terms that are too sparse.
 
 ```{r}
-(dtm <- removeSparseTerms(dtm, 0.8))                        #Remove sparse terms
+(dtm <- removeSparseTerms(dtm, 0.8))                        # Remove sparse terms
 
 #Data set for learning
 dataSet <- cbind(data.frame(as.matrix(dtm), class = dat$rating))
@@ -345,24 +358,24 @@ Initially we will use this data set for learning the SVM model to predict the gr
 Let´s go randomly split the available data in two sets: a part for training and another (separate set) for testing.
 Then, we created the model with the training set and tested it on the testing set.
 
-```{r, eval=FALSE}
-dataSetTest <- dataSet[which(is.na(dataSet$class)), ]       #Save lines with NA's to in the end predict your star
+```{r}
+dataSetTest <- dataSet[which(is.na(dataSet$class)), ]       # Save lines with NA's so we can predict its star in the end
 
-dataSet <- dataSet[-which(is.na(dataSet$class)), ]          #Remove lines with NA's
+dataSet <- dataSet[-which(is.na(dataSet$class)), ]          # Remove lines with NA's
 
 #SVM model
 
-##Splitting the data into a training and test set 
+## Splitting the data into a training and test set 
 sp <- sample(1: nrow(dataSet), as.integer(0.7*nrow(dataSet)))
 tr <- dataSet[sp, ]
 ts <- dataSet[-sp, ]
 
-model <- svm(class ~ ., tr)             #obtain the model with the training set
-preds <- predict(model, ts)             #apply it to obtain predictions for the test set
+model <- svm(class ~ ., tr)             # obtain the model with the training set
+preds <- predict(model, ts)             # apply it to obtain predictions for the test set
 preds <- round(preds)
 
-##Calculate the error rate of the predictions 
-cm <- table(preds, ts$class)            #confusion matrix
+## Calculate the error rate of the predictions 
+cm <- table(preds, ts$class)            # confusion matrix
 (err <- 1- sum(diag(cm))/sum(cm))
 ```
 
@@ -372,8 +385,8 @@ Now we will try the following models: SVMs (linear and radial kernel), Tree-base
 
 To compare these models in order to select the best(s) we will take advantage of the functionalities of the package `performanceEstimation`, where in the estimation task we use the mean absolute error (mae) and the mean squared error (mse) as evaluation metric and we use the cross-validation (CV) method.
 
-```{r}
-#Trying prediction models
+```{r, fig.align="center"}
+# Trying prediction models
 exp <- performanceEstimation(
   PredTask(class ~ ., dataSet),
   c( Workflow(learner="earth"),
@@ -383,7 +396,7 @@ exp <- performanceEstimation(
   EstimationTask(metrics=c("mae", "mse"), method=CV())
 )
 
-#Some results
+# Some results
 summary(exp)
 
 plot(exp)
@@ -395,12 +408,12 @@ rankWorkflows(exp,2)
 
 We can easily see that the methods with best performing are the SVM with radial kernel for the evaluation metric mean absolute error and Tree-based model for mean squared error.
 
-Having said this, we will predict (using these two methods) the ratings of previously saved reviews (reviews whose users did not assign stars).
+Having said this, we will predict (using these two methods) the ratings of previously saved reviews (reviews which users did not assign stars).
 
-```{r, eval=FALSE}
+```{r}
 ##SVM radial kernel
 modelSVM2 <- svm(class ~ ., dataSet, kernel = "radial")
-(predSVM2 <- predict(modelSVM2, dataSetTest))             ##Porque nÃ£o preve? escrever conclusoes
+(predSVM2 <- predict(modelSVM2, dataSetTest))
 
 ##Tree-based
 modelTB <- rpartXse(class ~ ., dataSet)
@@ -408,7 +421,7 @@ modelTB <- rpartXse(class ~ ., dataSet)
 ```
 
 We can easily verify that tree-based model predicted for all reviews without evaluation, an grade of 5.612981 (ie a 5-star assignment if we round by default).
-But we should note that this model has an average absolute deviation between the predictions and true values of 3.014062 which means that this 5-star rating may actually be approximately 2 stars or 8 stars.
+But we should note that this model has an average absolute deviation between the predictions and true values of 3.014062 which means that this 5-star rating may actually be approximately 2 stars or 8 stars. As well as the results obtained by the best model (SVM), which has an average absolute deviation between the predictions and true values of 2.752745.
 
 We can then conclude that even the best error values (MAE of 2.752745 and MSE of 10.91337) obtained here are still quite relevant for this problem itself, given that the scale we have is 10 (stars) and an average absolute deviation of almost 3 units is quite relevant for the consideration of a positive opinion, an average opinion and a negative opinion.
 
