@@ -174,7 +174,7 @@ Having the link to the movie's webpage and the CSS selectors we want, we can fin
 
 We can see that some movie sites do not contain some of the requested information, obtaining the following result *character(0)*.
 
-```{r, message=FALSE, warning=FALSE, eval = FALSE}
+```{r, message=FALSE, warning=FALSE}
 listBasInf <- list()
 
 for(i in 1:NumMovies) {
@@ -214,7 +214,7 @@ for(i in 1:NumMovies) {
   listBasInf[[i]] <- list(l)
 }
 
-listBasInf
+listBasInf[[1]]
 ```
 
 
