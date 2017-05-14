@@ -281,6 +281,7 @@ We can try now this with the Lego Movie, as an example:
 # Lego movie:
 lego_movie_link <- "http://www.imdb.com/title/tt1490017/"
 dat <- fullReviews(lego_movie_link)
+head(dat)
 ```
 
 ###Model to predict the grade
@@ -289,42 +290,65 @@ The goal now is to build a model that can predict the grade of the review based 
 
 ####Build a data set for learning
 
-For this, we will first construct a data set (``dataSet``) suitable for learning of this model(s).
+For this, we will construct a data set (``dataSet``) suitable for learning of this model(s).
 
-First, let's build a corpus of directories with the reviews of the movie (we will continue with the previous example of the film "Lego") so that we can perform the following preprocessing tasks (Clean-ups).
+First, let's build a Corpus (a set of documents) with the reviews of the movie (we will continue with the previous example of the film "Lego") so that we can perform the preprocessing tasks (Clean-ups).
+
+There are many ways of importing documents into a tm Corpus object. In this case we will import documents whitch are stored as a vector of strings (one per text document). This is the goal of the ``VectorSource()`` call - to tell the function VCorpus that the Corpus is to be read from a series of reviews in a vector of strings (previously created data frame column). 
 
 ```{r, eval=FALSE}
-corp <- Corpus(VectorSource(dat$comment))
+(corp <- VCorpus(VectorSource(dat$comment)))                #Create a corpus using the reviews
+```
 
+For the preprocessing task let's use the ``tm_map()`` function of package **tm**, this function is one of the most important because it allows us to apply transformations to the texts forming a Corpus.
+Transformations basically consist in applying a function to each of the texts forming a Corpus, removing information that carries no information for our goal.
+
+Let's then remove white space, put everything in lowercase, removed punctuation characters and removed the numbers in the documents.
+Let's go too create a representation for each document using a bag of words approach. Some of the words on any text are too common to help in our goal, an example are stop words that occur on any language, which must be removed. Too most words have many variants (e.g. “bring” and “bringing”), presenting the same concept and thus it makes sense to use a single descriptor for each of these concepts. So we should carry out the task of word stemming that picks the “root” of each word.
+
+```{r}
 #Preprocessing the corpus: Clean-ups
 corp <-  tm_map(corp, stripWhitespace)                      #Strip extra whitespace
 corp <-  tm_map(corp, content_transformer(tolower))         #Turn everything to lowercase
 corp <-  tm_map(corp, removePunctuation)                    #Remove punctuation
 corp <-  tm_map(corp, removeNumbers)                        #Remove numbers
 corp1 <- tm_map(corp, removeWords, stopwords("english"))    #Remove stopwords
+corp1 <- tm_map(corp1, stemDocument)                        #Stemming the words (keeping only the "root" of each word)
+```
 
-dtm <- DocumentTermMatrix(corp1)
+Now let's create document term matrices using the ``DocumentTermMatrix()`` function. These are matrices that contain one row per document and where the columns are terms (typically words) appearing in all corpus. By default the matrix is filled with term frequencies.
+
+```{r}
+(dtm <- DocumentTermMatrix(corp1))
+inspect(dtm[, 10:11])
+```
+
+We can see that each document is still represented by many terms. We may carry out a further cleaning of some terms with the help of the function ``removeSparseTerms()`` that removes the terms that are too sparse.
+
+```{r}
 (dtm <- removeSparseTerms(dtm, 0.8))                        #Remove sparse terms
 
 #Data set for learning
-(dataSet <- cbind(data.frame(as.matrix(dtm), class = dat$rating)))
+dataSet <- cbind(data.frame(as.matrix(dtm), class = dat$rating))
+head(dataSet)
 ```
 
 ####Prediction models and Conclusions
 
+Sometimes we have some tag associated with each document of a given Corpus. When that the value of these tags may depends on the content of the documents, we have what is called a **Classification Problem**.
+These problems consist of trying to approximate an unknown function ``Y=f(X_1,X_2,...,X_p)``, where ``Y`` is the target variable (in our case is the number of stars given by the reviewer), and ``X_1,X_2,...,X_p`` are descriptor variables (in our case properties of the reviews).
+The approximation of this unknown function is obtained based on examples where we know both the values of the descriptor variables (series of documents obtained of the reviews) and the values of the target variable (number of stars) - known as a **training set**.
+
 Using the previous data set we will try a few prediction models and draw some conclusions from this comparison. 
 
 Initially we will use this data set for learning the SVM model to predict the grade based on the text.
-
-Later we will try the following models: SVMs (linear and radial kernel), Tree-based Models and MARS.
-
-To compare these models in order to select the best(s) we will take advantage of the functionalities of the package `performanceEstimation`, where in the estimation task we use the mean absolute error (mae) and the mean squared error (mse) as evaluation metric and we use the cross-validation (CV) method.
+Let´s go randomly split the available data in two sets: a part for training and another (separate set) for testing.
+Then, we created the model with the training set and tested it on the testing set.
 
 ```{r, eval=FALSE}
 dataSetTest <- dataSet[which(is.na(dataSet$class)), ]       #Save lines with NA's to in the end predict your star
 
 dataSet <- dataSet[-which(is.na(dataSet$class)), ]          #Remove lines with NA's
-dataSet$class <- as.numeric(dataSet$class)
 
 #SVM model
 
@@ -335,11 +359,20 @@ ts <- dataSet[-sp, ]
 
 model <- svm(class ~ ., tr)             #obtain the model with the training set
 preds <- predict(model, ts)             #apply it to obtain predictions for the test set
+preds <- round(preds)
 
 ##Calculate the error rate of the predictions 
 cm <- table(preds, ts$class)            #confusion matrix
-(err <- 1- sum(diag(cm))/sum(cm)) 
+(err <- 1- sum(diag(cm))/sum(cm))
+```
 
+Note that the values obtained by the models are in decimal values, but we want our forecast to be an integer value (the number of stars), so we will round, before we calculate the percentage of errors in our forecast, the values obtained using the ``round()`` function.
+
+Now we will try the following models: SVMs (linear and radial kernel), Tree-based Models and MARS.
+
+To compare these models in order to select the best(s) we will take advantage of the functionalities of the package `performanceEstimation`, where in the estimation task we use the mean absolute error (mae) and the mean squared error (mse) as evaluation metric and we use the cross-validation (CV) method.
+
+```{r}
 #Trying prediction models
 exp <- performanceEstimation(
   PredTask(class ~ ., dataSet),
@@ -367,7 +400,7 @@ Having said this, we will predict (using these two methods) the ratings of previ
 ```{r, eval=FALSE}
 ##SVM radial kernel
 modelSVM2 <- svm(class ~ ., dataSet, kernel = "radial")
-(predSVM2 <- predict(modelSVM2, dataSetTest))             ##Porque não preve? escrever conclusoes
+(predSVM2 <- predict(modelSVM2, dataSetTest))             ##Porque nÃ£o preve? escrever conclusoes
 
 ##Tree-based
 modelTB <- rpartXse(class ~ ., dataSet)
@@ -377,7 +410,7 @@ modelTB <- rpartXse(class ~ ., dataSet)
 We can easily verify that tree-based model predicted for all reviews without evaluation, an grade of 5.612981 (ie a 5-star assignment if we round by default).
 But we should note that this model has an average absolute deviation between the predictions and true values of 3.014062 which means that this 5-star rating may actually be approximately 2 stars or 8 stars.
 
-We can then conclude that even the best error values (MAE of 2.791419 and MSE of 10.85248) obtained here are still quite relevant for this problem itself, given that the scale we have is 10 (stars) and an average absolute deviation of almost 3 units is quite relevant for the consideration of a positive opinion, an average opinion and a negative opinion.
+We can then conclude that even the best error values (MAE of 2.752745 and MSE of 10.91337) obtained here are still quite relevant for this problem itself, given that the scale we have is 10 (stars) and an average absolute deviation of almost 3 units is quite relevant for the consideration of a positive opinion, an average opinion and a negative opinion.
 
 ###Summarise the reviews of a movie
 
